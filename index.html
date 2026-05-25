@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+<script>
+// DOBEHA DB SDK - Simulated D1 Client
+class DobehaDB {
+  constructor(projectId) {
+    this.projectId = projectId;
+    this.key = 'dobeha_db_' + projectId;
+    this.init();
+  }
+
+  init() {
+    if (!localStorage.getItem(this.key)) {
+      localStorage.setItem(this.key, JSON.stringify({ tables: [] }));
+    }
+  }
+
+  getState() {
+    try {
+      return JSON.parse(localStorage.getItem(this.key)) || { tables: [] };
+    } catch {
+      return { tables: [] };
+    }
+  }
+
+  saveState(state) {
+    localStorage.setItem(this.key, JSON.stringify(state));
+    window.parent.postMessage({ type: 'DB_UPDATE', projectId: this.projectId, state }, '*');
+  }
+
+  async runSQL(query, params = []) {
+    console.log("DB Query executed:", query, params);
+    const state = this.getState();
+    const cleanQuery = query.replace(/\s+/g, ' ').trim();
+    
+    // 1. CREATE TABLE
+    const createMatch = cleanQuery.match(/CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(\\w+)\\s*\\((.*)\\)/i);
+    if (createMatch) {
+      const tableName = createMatch[1];
+      const colsDefinition = createMatch[2];
+      
+      const tableExists = state.tables.find(t => t.name.toLowerCase() === tableName.toLowerCase());
+      if (tableExists) {
+        return { success: true, message: "Table already exists" };
+      }
+
+      const columns = colsDefinition.split(',').map(col => {
+        const parts = col.trim().split(/\\s+/);
+        const name = parts[0];
+        const type = parts[1] || 'TEXT';
+        const pk = col.toUpperCase().includes('PRIMARY KEY');
+        return { name, type, pk };
+      });
+
+      state.tables.push({ name: tableName, columns, rows: [] });
+      this.saveState(state);
+      return { success: true, message: `Table ${tableName} created` };
+    }
+
+    // 2. INSERT INTO
+    const insertMatch = cleanQuery.match(/INSERT\\s+INTO\\s+(\\w+)\\s*\\(([^)]+)\\)\\s*VALUES\\s*\\(([^)]+)\\)/i);
+    if (insertMatch) {
+      const tableName = insertMatch[1];
+      const fields = insertMatch[2].split(',').map(f => f.trim());
+      
+      let valuesStr = insertMatch[3];
+      const values = [];
+      let current = "";
+      let insideQuote = false;
+      for (let i = 0; i < valuesStr.length; i++) {
+        const c = valuesStr[i];
+        if (c === "'" || c === '"') {
+          insideQuote = !insideQuote;
+        } else if (c === "," && !insideQuote) {
+          values.push(current.trim().replace(/^['"]|['"]$/g, ""));
+          current = "";
+        } else {
+          current += c;
+        }
+      }
+      if (current) {
+        values.push(current.trim().replace(/^['"]|['"]$/g, ""));
+      }
+
+      const table = state.tables.find(t => t.name.toLowerCase() === tableName.toLowerCase());
+      if (!table) throw new Error(`Table ${tableName} not found`);
+
+      const row = {};
+      const idCol = table.columns.find(c => c.pk);
+      if (idCol && !fields.includes(idCol.name)) {
+        row[idCol.name] = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+      }
+
+      fields.forEach((field, idx) => {
+        let val = values[idx];
+        if (val === '?') {
+          val = params.shift();
+        }
+        row[field] = val;
+      });
+
+      table.rows.push(row);
+      this.saveState(state);
+      return { success: true, changes: 1 };
+    }
+
+    // 3. SELECT * FROM
+    const selectMatch = cleanQuery.match(/SELECT\\s+(.+?)\\s+FROM\\s+(\\w+)/i);
+    if (selectMatch) {
+      const tableName = selectMatch[2];
+      const table = state.tables.find(t => t.name.toLowerCase() === tableName.toLowerCase());
+      if (!table) return [];
+      
+      const whereMatch = cleanQuery.match(/WHERE\\s+(.+)/i);
+      if (whereMatch) {
+        const condition = whereMatch[1].trim();
+        const parts = condition.split('=');
+        if (parts.length === 2) {
+          const colName = parts[0].trim();
+          let rawVal = parts[1].trim().replace(/^['"]|['"]$/g, "");
+          if (rawVal === '?') {
+            rawVal = params[0];
+          }
+          return table.rows.filter(r => String(r[colName]) === String(rawVal));
+        }
+      }
+      return table.rows;
+    }
+
+    // 4. DELETE FROM
+    const deleteMatch = cleanQuery.match(/DELETE\\s+FROM\\s+(\\w+)(?:\\s+WHERE\\s+(.+))?/i);
+    if (deleteMatch) {
+      const tableName = deleteMatch[1];
+      const table = state.tables.find(t => t.name.toLowerCase() === tableName.toLowerCase());
+      if (!table) return { success: true, changes: 0 };
+      
+      const condition = deleteMatch[2];
+      if (condition) {
+        const parts = condition.split('=');
+        if (parts.length === 2) {
+          const colName = parts[0].trim();
+          let rawVal = parts[1].trim().replace(/^['"]|['"]$/g, "");
+          if (rawVal === '?') {
+            rawVal = params[0];
+          }
+          const prevLen = table.rows.length;
+          table.rows = table.rows.filter(r => String(r[colName]) !== String(rawVal));
+          this.saveState(state);
+          return { success: true, changes: prevLen - table.rows.length };
+        }
+      }
+      const prevLen = table.rows.length;
+      table.rows = [];
+      this.saveState(state);
+      return { success: true, changes: prevLen };
+    }
+
+    console.warn("SQL Query not fully supported in simulation:", query);
+    return { success: false, error: "SQL statement simulation limit reached" };
+  }
+}
+window.db = new DobehaDB('nnnn');
+</script>
+
+</head>
+<body>
+  <div class="app-container">
+    <aside class="side-menu">
+      <div class="brand">DOBEHA<span>Panel</span></div>
+      <nav>
+        <a href="#" class="active">📊 Resumen</a>
+        <a href="#sales-tab">💼 Ventas</a>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header>
+        <h2>Panel de Métricas Analíticas</h2>
+        <div class="user-profile">Admin Pro</div>
+      </header>
+
+      <section class="stats-grid">
+        <div class="stat-card">
+          <h4>Ventas Totales</h4>
+          <p id="total-sales">$0.00</p>
+        </div>
+        <div class="stat-card">
+          <h4>Transacciones</h4>
+          <p id="total-transactions">0</p>
+        </div>
+        <div class="stat-card">
+          <h4>Ingreso Promedio</h4>
+          <p id="avg-sale">$0.00</p>
+        </div>
+      </section>
+
+      <section class="sales-input-sec" id="sales-tab">
+        <h3>Registrar Nueva Venta (D1 Transaction)</h3>
+        <form id="sales-form">
+          <input type="text" id="client" placeholder="Cliente" required />
+          <input type="number" id="amount" placeholder="Monto ($)" step="0.01" required />
+          <button type="submit" class="btn-primary">Registrar</button>
+        </form>
+      </section>
+
+      <section class="table-container">
+        <h3>Registro de Transacciones Recientes (D1 query)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Cliente</th>
+              <th>Monto</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="sales-table-body">
+            <!-- Dinámico -->
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
