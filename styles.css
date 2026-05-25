@@ -1,0 +1,163 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #09090b;
+  color: #fafafa;
+  font-family: 'Outfit', sans-serif;
+}
+
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.side-menu {
+  width: 240px;
+  background: #18181b;
+  border-right: 1px solid #27272a;
+  padding: 2rem 1.5rem;
+}
+
+.brand {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 3rem;
+}
+
+.brand span {
+  color: #10b981;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+nav a {
+  color: #a1a1aa;
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+nav a:hover, nav a.active {
+  background: #27272a;
+  color: #fff;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2.5rem;
+  overflow-y: auto;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.stat-card {
+  background: #18181b;
+  border: 1px solid #27272a;
+  padding: 1.5rem;
+  border-radius: 12px;
+}
+
+.stat-card h4 {
+  color: #a1a1aa;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.stat-card p {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.sales-input-sec {
+  background: #18181b;
+  border: 1px solid #27272a;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 3rem;
+}
+
+.sales-input-sec h3 {
+  margin-bottom: 1rem;
+}
+
+#sales-form {
+  display: flex;
+  gap: 1rem;
+}
+
+#sales-form input {
+  background: #09090b;
+  border: 1px solid #27272a;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.btn-primary {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #059669;
+}
+
+.table-container {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.table-container h3 {
+  margin-bottom: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #27272a;
+}
+
+th {
+  color: #a1a1aa;
+  font-weight: 600;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
